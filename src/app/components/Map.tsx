@@ -49,6 +49,7 @@ const LiveBusMap: React.FC = () => {
   const [busStops, setBusStops] = useState<BusStop[]>([]);
   const [busIcon, setBusIcon] = useState<any | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [searchStop, setSearchStop] = useState<string>(""); // Kullanıcının girdiği durak adı
   const [route, setRoute] = useState<[number, number][]>([]);
   const mapRef = useRef<any>(null);
 
@@ -77,13 +78,15 @@ const LiveBusMap: React.FC = () => {
 
         const busStopData: BusStop[] = data.result.records.map((stop: any) => ({
           DURAK_ID: stop.DURAK_ID,
-          DURAK_ADI: stop.DURAK_ADI,
+          DURAK_ADI: stop.DURAK_ADI.trim().toLowerCase(), // 🔥 Küçük harfe çevir ve boşlukları temizle
           ENLEM: parseFloat(stop.ENLEM),
           BOYLAM: parseFloat(stop.BOYLAM),
           DURAKTAN_GECEN_HATLAR: stop.DURAKTAN_GECEN_HATLAR || "Unknown Route",
         }));
 
         setBusStops(busStopData);
+        console.log("API'den Gelen Duraklar:", busStopData); // 🔍 Konsolda API verisini göster
+
       } catch (error) {
         console.error("Error fetching data:", error);
       }
@@ -124,6 +127,28 @@ const LiveBusMap: React.FC = () => {
     }
   };
 
+  const zoomToStop = () => {
+    if (!searchStop.trim()) {
+      alert("Lütfen bir durak adı girin!");
+      return;
+    }
+
+    console.log("Girilen Durak Adı:", searchStop);
+    console.log("Mevcut Duraklar:", busStops.map((stop) => stop.DURAK_ADI));
+
+    const foundStop = busStops.find((stop) =>
+      stop.DURAK_ADI === searchStop.trim().toLowerCase()
+    );
+
+    if (foundStop && mapRef.current) {
+      console.log(`Durak bulundu: ${foundStop.DURAK_ADI}, Zoom yapılıyor...`);
+      mapRef.current.setView([foundStop.ENLEM, foundStop.BOYLAM], 18, { animate: true });
+    } else {
+      console.error("Durak bulunamadı! API'den gelen isimlerle eşleşmiyor.");
+      alert("Durak bulunamadı! Lütfen tam adını yazdığınızdan emin olun.");
+    }
+  };
+
   return (
     <div>
       <div style={{ textAlign: "center", marginBottom: "10px" }}>
@@ -146,6 +171,26 @@ const LiveBusMap: React.FC = () => {
         </button>
       </div>
 
+      <div style={{ textAlign: "center", marginBottom: "10px" }}>
+        <input
+          type="text"
+          placeholder="Durak Adı gir..."
+          value={searchStop}
+          onChange={(e) => setSearchStop(e.target.value)}
+        />
+        <button
+          onClick={zoomToStop}
+          style={{
+            marginLeft: "10px",
+            padding: "10px",
+            background: "green",
+            color: "white",
+          }}
+        >
+          🔍 Durağı Bul
+        </button>
+      </div>
+
       <MapContainer
         center={[38.48604, 27.056975]}
         zoom={13}
@@ -159,17 +204,10 @@ const LiveBusMap: React.FC = () => {
         />
 
         {busStops.map((stop) => (
-          <Marker
-            key={stop.DURAK_ID}
-            position={[stop.ENLEM, stop.BOYLAM]}
-            icon={busIcon}
-          >
+          <Marker key={stop.DURAK_ID} position={[stop.ENLEM, stop.BOYLAM]} icon={busIcon}>
             <Popup>
               <b>Durak Adı:</b> {stop.DURAK_ADI} <br />
               <b>Hat No:</b> {stop.DURAKTAN_GECEN_HATLAR} <br />
-              <button onClick={() => alert("Favorilere Eklendi!")}>
-                ⭐ Favorilere Ekle
-              </button>
             </Popup>
           </Marker>
         ))}
